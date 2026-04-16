@@ -49,9 +49,31 @@ def calibrate_camera(img, cube_calibration=False):
     M = None
 
     points_2d, points_3d = get_calibration_points(img, cube_calibration=cube_calibration)
-    M = calibrate_from_points(points_2d, points_3d)
+    M = calibrate_norm(points_2d, points_3d)
 
     return M
+
+def project_point(M, points_2d, z):
+    points3d_estimated = []
+    for i in range(points_2d.shape[0]):
+        x, y = points_2d[i]
+        
+        A = np.array([
+            [M[0, 0] - x * M[2, 0], M[0, 1] - x * M[2, 1]],
+            [M[1, 0] - y * M[2, 0], M[1, 1] - y * M[2, 1]]
+        ])
+        
+        b = np.array([
+            x * (M[2, 2] * z[i] + M[2, 3]) - (M[0, 2] * z[i] + M[0, 3]), 
+            y * (M[2, 2] * z[i] + M[2, 3]) - (M[1, 2] * z[i] + M[1, 3])
+        ])
+
+        xy = np.linalg.solve(A, b)
+        points3d_estimated.append([xy[0], xy[1], z[i]])
+
+    points3d_estimated = np.array(points3d_estimated)
+
+    return points3d_estimated
 
 def calibrate_from_points(points2d, points3d):
 
@@ -70,6 +92,35 @@ def calibrate_from_points(points2d, points3d):
     m = Vt[-1]
 
     return m.reshape(3, 4)
+
+def calibrate_norm(points2d, points3d):
+
+    x_avg = np.mean(points2d[:, 0])
+    y_avg = np.mean(points2d[:, 1])
+    d_avg = np.mean(np.sqrt((points2d[:, 0] - x_avg)**2 + (points2d[:, 1] - y_avg)**2))
+
+    T = np.array([[np.sqrt(2)/d_avg, 0, -np.sqrt(2)*x_avg/d_avg],
+                  [0, np.sqrt(2)/d_avg, -np.sqrt(2)*y_avg/d_avg],
+                  [0, 0, 1]])
+    
+    X_avg = np.mean(points3d[:, 0])
+    Y_avg = np.mean(points3d[:, 1])
+    Z_avg = np.mean(points3d[:, 2])
+    D_avg = np.mean(np.sqrt((points3d[:, 0] - X_avg)**2 + (points3d[:, 1] - Y_avg)**2 + (points3d[:, 2] - Z_avg)**2))
+
+    U = np.array([[np.sqrt(3)/D_avg, 0, 0, -np.sqrt(3)*X_avg/D_avg],
+                  [0, np.sqrt(3)/D_avg, 0, -np.sqrt(3)*Y_avg/D_avg],
+                  [0, 0, np.sqrt(3)/D_avg, -np.sqrt(3)*Z_avg/D_avg],
+                  [0, 0, 0, 1]])
+
+    normalized_2d_pts = (T @ np.hstack((points2d, np.ones((points2d.shape[0], 1)))).T).T[:, :2]
+    normalized_3d_pts = (U @ np.hstack((points3d, np.ones((points3d.shape[0], 1)))).T).T[:, :3]
+
+    M = calibrate_from_points(normalized_2d_pts, normalized_3d_pts)
+
+    denormalized_M = np.linalg.inv(T) @ M @ U
+
+    return denormalized_M
 
 if __name__ == "__main__":
  

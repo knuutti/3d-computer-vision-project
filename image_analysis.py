@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 import image_processing as ip
 import calibration as cal
-from elements import ElementType, ObjectType
+from elements import ElementType, ObjectType, get_element_height, get_object_type
 
 class Elements:
     def __init__(self, centroid, color, type):
@@ -72,14 +72,12 @@ def analyze_image(img_hsv):
 
     returned_elements = []
     for element in elements:
-        if element.type == ElementType.CUBE_FACE:
-            returned_elements.append((element.centroid, element.color, ObjectType.CUBE_RED + element.color))
-        elif element.type == ElementType.GOAL:
-            returned_elements.append((element.centroid, element.color, ObjectType.GOAL_RED + element.color))
-        elif element.type == ElementType.ROBOT_FRONT:
-            returned_elements.append((element.centroid, element.color, ObjectType.ROBOT_FRONT))
-        elif element.type == ElementType.ROBOT_CENTER:
-            returned_elements.append((element.centroid, element.color, ObjectType.ROBOT_CENTER))
+        returned_elements.append({
+            "centroid": element.centroid, 
+            "color": element.color, 
+            "type": get_object_type(element.type, element.color), 
+            "height": get_element_height(element.type)
+        })
         
     return returned_elements
 
@@ -88,4 +86,4 @@ if __name__ == "__main__":
     img_hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
     elements = analyze_image(img_hsv)
     for element in elements:
-        print(f"Centroid: {element[0]}, Type: {element[2]}")
+        print(f"Centroid: {element['centroid']}, Type: {element['type']}, Color: {element['color']}, Height: {element['height']}")
