@@ -10,7 +10,7 @@ class Color:
     PURPLE = 4
 
 class Blob:
-    def __init__(self, area, centroid, holeFactor, xmin, ymin, width, height, contour_lines):
+    def __init__(self, area, centroid, holeFactor, xmin, ymin, width, height, is_mask_in_centroid):
         self.area = area
         self.centroid = centroid
         self.holeFactor = holeFactor
@@ -18,17 +18,17 @@ class Blob:
         self.ymin = ymin
         self.width = width
         self.height = height
-        self.contour_lines = contour_lines
-        
+        self.is_mask_in_centroid = is_mask_in_centroid
+
 def classify_blobs(blobs):
     if len(blobs) == 0:
         return [], []
     elif len(blobs) == 1:
         return blobs, []
     else:
-        sorted_indices = np.argsort([blob.contour_lines for blob in blobs])[::-1]
-        cube_face_blob = blobs[sorted_indices[1]]
-        goal_blob = blobs[sorted_indices[0]]
+        sorted_indices = np.argsort([blob.is_mask_in_centroid for blob in blobs])[::-1]
+        cube_face_blob = blobs[sorted_indices[0]]
+        goal_blob = blobs[sorted_indices[1]]
         return [cube_face_blob], [goal_blob]
 
 # Function for getting a binary mask for a specific color in an image
@@ -82,6 +82,7 @@ def analyze_blobs(mask, min_area=100):
         if i >= 2:
             break
         area = contour_areas[idx]
+        is_mask_in_centroid = mask[int(np.mean(contours[idx][:, 0, 1])), int(np.mean(contours[idx][:, 0, 0]))] > 0
         if area >= min_area:
             blobs.append(Blob(
                 area=area,
@@ -91,7 +92,7 @@ def analyze_blobs(mask, min_area=100):
                 ymin=np.min(contours[idx][:, 0, 1]),
                 width=np.max(contours[idx][:, 0, 0]) - np.min(contours[idx][:, 0, 0]),
                 height=np.max(contours[idx][:, 0, 1]) - np.min(contours[idx][:, 0, 1]),
-                contour_lines=cv.approxPolyDP(contours[idx], epsilon=0.02*cv.arcLength(contours[idx], True), closed=True).shape[0]
+                is_mask_in_centroid=is_mask_in_centroid
             ))
 
     return blobs

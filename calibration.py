@@ -15,33 +15,27 @@ def get_calibration_points(img, cube_calibration = True, scale_factor = 0.1):
     img_scaled_gray = cv.resize(cv.cvtColor(img, cv.COLOR_BGR2GRAY), (0, 0), fx=scale_factor, fy=scale_factor)
 
     corners = cv.findChessboardCorners(img_scaled_gray, (6,8), None)[1]
-    
     corners = corners.reshape(-1, 2)
     corners *= (1/scale_factor)
+    
+    x_coords = np.arange(5*40, -40, -40)
+    y_coords = np.arange(0, 8*40, 40)
 
-    points_2d = np.array([
-        corners[0],
-        corners[5],
-        corners[42],
-        corners[47]
-    ])
+    points_3d = []
+    for i, point in enumerate(corners):
+        x_idx = i % 6
+        y_idx = i // 6
+        points_3d.append([x_coords[x_idx], y_coords[y_idx], 0])
 
-    points_3d = np.array([
-        [5*40, 0, 0],
-        [0, 0, 0],
-        [5*40, 7*40, 0],
-        [0, 7*40, 0]
-    ])
+    points_2d = corners 
+    points_3d = np.array(points_3d)
 
     if cube_calibration:
         img_hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
         blue_cube_2d = get_cube_location(img_hsv, ip.Color.BLUE)
         green_cube_2d = get_cube_location(img_hsv, ip.Color.GREEN)
         points_2d = np.vstack((points_2d, blue_cube_2d, green_cube_2d))
-        points_3d = np.vstack((points_3d, [-0.5*40, 7.5*40, 1*40], [5.5*40, -0.5*40, 2*40]))
-    else:
-        points_2d = np.vstack((points_2d, corners[45], corners[27]))
-        points_3d = np.vstack((points_3d, [2*40, 7*40, 0], [2*40, 4*40, 0]))
+        points_3d = np.vstack((points_3d, [5.5*40, -0.5*40, 2*40], [-0.5*40, 7.5*40, 1*40]))
 
     return points_2d, points_3d
 
@@ -53,27 +47,13 @@ def calibrate_camera(img, cube_calibration=False):
 
     return M
 
-def project_point(M, points_2d, z):
-    points3d_estimated = []
-    for i in range(points_2d.shape[0]):
-        x, y = points_2d[i]
-        
-        A = np.array([
-            [M[0, 0] - x * M[2, 0], M[0, 1] - x * M[2, 1]],
-            [M[1, 0] - y * M[2, 0], M[1, 1] - y * M[2, 1]]
-        ])
-        
-        b = np.array([
-            x * (M[2, 2] * z[i] + M[2, 3]) - (M[0, 2] * z[i] + M[0, 3]), 
-            y * (M[2, 2] * z[i] + M[2, 3]) - (M[1, 2] * z[i] + M[1, 3])
-        ])
-
-        xy = np.linalg.solve(A, b)
-        points3d_estimated.append([xy[0], xy[1], z[i]])
-
-    points3d_estimated = np.array(points3d_estimated)
-
-    return points3d_estimated
+def project_point(M, points, z):
+    n = len(points)
+    A = np.linalg.inv(M[:, [0, 1, 3]])
+    b = M[:, 2:3]
+    points = np.concatenate((points.T, [[1] * n]), 0)
+    out = A @ (points - z * b)
+    return (out[:-1] / out[-1]).T
 
 def calibrate_from_points(points2d, points3d):
 
@@ -122,9 +102,16 @@ def calibrate_norm(points2d, points3d):
 
     return denormalized_M
 
-if __name__ == "__main__":
- 
-    img = cv.imread("calibration/img_01.png")
-    M = calibrate_camera(img, cube_calibration=True)
+def img_to_world(points, calib, z):
+    n = len(points)
+    A = np.linalg.inv(calib[:, [0, 1, 3]])
+    b = calib[:, 2:3]
+    points = np.concatenate((points.T, [[1] * n]), 0)
+    out = A @ (points - z * b)
+    return (out[:-1] / out[-1]).T
 
-    
+def calibrate_camera(imgs):
+    img = imgs[0] # Only use the first image for calibration
+    points_2d, points_3d = get_calibration_points(img, cube_calibration=True)
+    M = calibrate_norm(points_2d, points_3d)
+    return M

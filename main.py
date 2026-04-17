@@ -1,23 +1,21 @@
-from calibration import calibrate_camera
-import image_processing as ip
-import image_analysis as ia
+import calibration as cal
+import execute
 import cv2 as cv
-import matplotlib.pyplot as plt
+import numpy as np
 
 def main():
 
-    img_calibration = cv.imread("calibration/img_01.png")
-    M = calibrate_camera(img_calibration, cube_calibration=True)
-    img_test = cv.imread("test/img_01.png")
-    img_hsv = cv.cvtColor(img_test, cv.COLOR_BGR2HSV)
-    elements = ia.analyze_image(img_hsv)
+    # Calibrate
+    img = cv.imread("calibration/img_01.png")
+    imgs = [img]
+    M = cal.calibrate_camera(imgs)
 
-    plt.figure()
-    plt.imshow(img_test)
-    for element in elements:
-        plt.scatter(element[0][0], element[0][1], c='m', marker='x')
-    plt.show()
-    
+    # Execute
+    img_test = cv.imread("test/img_00.png")
+    points_3d_estimated = execute.get_points_from_image(img_test, M)
+    scene = execute.get_scene_details(points_3d_estimated)
+    execute.plot_scene(scene)
+
 
 if __name__ == "__main__":
     main()
