@@ -24,11 +24,12 @@ def move_block(blocks, img, calib) -> str:
     output: instruction for the robot
     """
 
-    
+    points_3d_estimated = get_points_from_image(img, calib)
+    scene = get_scene_details(points_3d_estimated)
 
-    return
+    return get_instructions(blocks, scene)
 
-def get_instructions(scene):
+def get_instructions(blocks, scene):
     instructions = ""
     
     # TODO
