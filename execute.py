@@ -110,7 +110,7 @@ def get_points_from_image(img, calib):
     elements = [elements[i] for i in idx]
     heights = [element["height"] for element in elements]
     points_2d = np.array([element["centroid"] for element in elements])
-    points_3d_estimated = cal.project_point(calib, points_2d, z=heights)
+    points_3d_estimated = cal.image_points_to_world_at_z(calib, points_2d, z=heights)
     return points_3d_estimated[:, :2]
 
 def get_scene_details(points_3d):
