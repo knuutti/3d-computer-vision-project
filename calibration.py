@@ -11,41 +11,55 @@ def get_cube_location(img_hsv, color):
 
     return cube[0].centroid
 
-def get_calibration_points(img, cube_calibration = True, scale_factor = 0.1):
+def get_calibration_points(img, auto=True, scale_factor = 0.1):
     img_scaled_gray = cv.resize(cv.cvtColor(img, cv.COLOR_BGR2GRAY), (0, 0), fx=scale_factor, fy=scale_factor)
 
-    corners = cv.findChessboardCorners(img_scaled_gray, (6,8), None)[1]
-    corners = corners.reshape(-1, 2)
-    corners *= (1/scale_factor)
+    points_2d = None
+    points_3d = None
     
-    x_coords = np.arange(5*40, -40, -40)
-    y_coords = np.arange(0, 8*40, 40)
+    if auto:
+        corners = cv.findChessboardCorners(img_scaled_gray, (6,8), None)[1]
+        corners = corners.reshape(-1, 2)
+        corners *= (1/scale_factor)
+        
+        x_coords = np.arange(5*40, -40, -40)
+        y_coords = np.arange(0, 8*40, 40)
 
-    points_3d = []
-    for i, point in enumerate(corners):
-        x_idx = i % 6
-        y_idx = i // 6
-        points_3d.append([x_coords[x_idx], y_coords[y_idx], 0])
-
-    points_2d = corners 
-    points_3d = np.array(points_3d)
-
-    if cube_calibration:
+        points_3d = []
+        for i, point in enumerate(corners):
+            x_idx = i % 6
+            y_idx = i // 6
+            points_3d.append([x_coords[x_idx], y_coords[y_idx], 0])
+        points_2d = corners 
+        points_3d = np.array(points_3d)
         img_hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
         blue_cube_2d = get_cube_location(img_hsv, ip.Color.BLUE)
         green_cube_2d = get_cube_location(img_hsv, ip.Color.GREEN)
         points_2d = np.vstack((points_2d, blue_cube_2d, green_cube_2d))
         points_3d = np.vstack((points_3d, [5.5*40, -0.5*40, 2*40], [-0.5*40, 7.5*40, 1*40]))
 
+    else:
+        points_2d = np.array(select_points(cv.cvtColor(img, cv.COLOR_BGR2GRAY)))
+        # 3D points for manual selection: 
+        # 4x checkboard corners: Z=0, XY locations (40,40), (40,8*40), (6*40,8*40), (6*40,40)
+        # Blue cube top face corners: Z=80, XY locations (6*40, 0), (6*40,40), (7*40,40), (7*40,0)
+        # Green cube top face corners: Z=40, XY locations (0,8*40), (0,9*40), (40,9*40), (40,8*40)
+        points_3d = np.array([
+            [40, 40, 0],
+            [40, 8*40, 0],
+            [6*40, 8*40, 0],
+            [6*40, 40, 0],
+            [6*40, 0, 80],
+            [6*40, 40, 80],
+            [7*40, 40, 80],
+            [7*40, 0, 80],
+            [0, 8*40, 40],
+            [0, 9*40, 40],
+            [40, 9*40, 40],
+            [40, 8*40, 40]
+        ])
+
     return points_2d, points_3d
-
-def calibrate_camera(img, cube_calibration=False):
-    M = None
-
-    points_2d, points_3d = get_calibration_points(img, cube_calibration=cube_calibration)
-    M = calibrate_norm(points_2d, points_3d)
-
-    return M
 
 def project_point(M, points, z):
     n = len(points)
@@ -110,8 +124,54 @@ def img_to_world(points, calib, z):
     out = A @ (points - z * b)
     return (out[:-1] / out[-1]).T
 
-def calibrate_camera(imgs):
+def calibrate_camera(imgs, mode="auto"):
     img = imgs[0] # Only use the first image for calibration
-    points_2d, points_3d = get_calibration_points(img, cube_calibration=True)
+    points_2d, points_3d = get_calibration_points(img, auto=(mode=="auto"))
     M = calibrate_norm(points_2d, points_3d)
     return M
+
+def select_points(img, scale_factor=.3):
+    points = []
+
+    def click_event(event, x, y, flags, param):
+        count = 0
+        if event == cv.EVENT_LBUTTONDOWN:
+            cmod = count % 2
+
+            original_x = int((x - new_width // 2 * cmod) / scale_factor)
+            original_y = int(y / scale_factor)
+            if cmod == 0:
+                points.append((original_x, original_y))
+
+            cv.circle(param, (x, y), 3, (0, 255, 0), -1)
+            cv.imshow("Image", param)
+            count += 1
+
+    # Resize image for display
+    height, width = img.shape
+    new_height, new_width = int(height * scale_factor), int(width * scale_factor)
+    resized_img = cv.cvtColor(cv.resize(img, (new_width, new_height), interpolation=cv.INTER_LINEAR), cv.COLOR_GRAY2BGR)
+
+    cv.imshow("Image", resized_img)
+    cv.setMouseCallback("Image", click_event, resized_img)
+
+    # Stop when esc pressed
+    while True:
+        key = cv.waitKey(20) & 0xFF
+        if key == 27:  # ESC key to break
+            break
+        if cv.getWindowProperty("Image", cv.WND_PROP_VISIBLE) < 1:  # Check if window is closed
+            break
+    cv.destroyAllWindows()
+
+    plt.figure(figsize=(18, 9))
+    plt.imshow(cv.cvtColor(resized_img, cv.COLOR_BGR2RGB))
+    plt.tight_layout()
+    plt.axis("off")
+    plt.show()
+    return points
+
+if __name__ == "__main__":
+    img = cv.imread("calibration/img_01.png")
+    imgs = [img]
+    M = calibrate_camera(imgs, mode="auto")

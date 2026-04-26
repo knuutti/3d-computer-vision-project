@@ -74,9 +74,9 @@ def write_instructions_for_moving_block(metrics, scene, cube_color):
     # Rotate the robot to face the target
     instructions += f"turn({get_turn_angle(metrics[1], metrics[3]):.1f});"
     scene.robot_orientation = metrics[3]  # Update robot orientation after rotation
-    # Move the robot to the target
-    instructions += f"go({(metrics[2]/10):.1f});"
-    scene.robot += metrics[2] * np.array([np.cos(scene.robot_orientation), np.sin(scene.robot_orientation)])  # Update robot position after moving forward
+    # Move the robot to the target (should be -120 mm))
+    instructions += f"go({((metrics[2]-120)/10):.1f});"
+    scene.robot += (metrics[2] - 120) * np.array([np.cos(scene.robot_orientation), np.sin(scene.robot_orientation)])  # Update robot position after moving forward
     # Drop the block
     instructions += "let_go();"
     # Move back 200 mm to clear the area    
@@ -99,9 +99,8 @@ def get_instructions(blocks, scene):
         metrics = get_metrics_for_block_moving(block, scene)
         block_instructions, scene = write_instructions_for_moving_block(metrics, scene, cube_color=block)
         instructions += block_instructions
-        plot_scene(scene) 
     
-    return instructions
+    return instructions[:-1]
 
 def get_points_from_image(img, calib):
     img_hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)

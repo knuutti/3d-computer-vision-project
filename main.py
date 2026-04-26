@@ -8,15 +8,12 @@ def main():
     # Calibrate
     img = cv.imread("calibration/img_01.png")
     imgs = [img]
-    M = cal.calibrate_camera(imgs)
+    M = cal.calibrate_camera(imgs, mode="auto")
 
     # Execute
     img_test = cv.imread("test/img_01.png")
-    points_3d_estimated = execute.get_points_from_image(img_test, M)
-    scene = execute.get_scene_details(points_3d_estimated)
-    execute.plot_scene(scene)
+    instructions = execute.move_block(["red", "blue", "green"], img_test, M)
 
-    instructions = execute.get_instructions(["red", "blue", "green"], scene)
     print(instructions)
 
 
