@@ -11,10 +11,13 @@ def main():
     M = cal.calibrate_camera(imgs)
 
     # Execute
-    img_test = cv.imread("test/img_00.png")
+    img_test = cv.imread("test/img_01.png")
     points_3d_estimated = execute.get_points_from_image(img_test, M)
     scene = execute.get_scene_details(points_3d_estimated)
     execute.plot_scene(scene)
+
+    instructions = execute.get_instructions(["red", "blue", "green"], scene)
+    print(instructions)
 
 
 if __name__ == "__main__":
