@@ -13,11 +13,6 @@ def get_cube_location(img_hsv, color):
 
 def get_cube_face_corners(img_hsv, color):
     mask = ip.color_threshold(img_hsv, color)
-    
-    if color == ip.Color.GREEN:
-        plt.figure(figsize=(18, 9))
-        plt.imshow(mask, cmap='gray')
-        plt.show()
     blobs = ip.analyze_blobs(mask)
     cube, _ = ip.classify_blobs(blobs)
 
