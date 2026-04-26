@@ -33,12 +33,18 @@ def get_metrics_for_block_moving(block, scene):
     if block == "red":
         block_pos = scene.block_red
         target_pos = scene.target_red
+        cube1_position = scene.block_green
+        cube2_position = scene.block_blue
     elif block == "green":
         block_pos = scene.block_green
         target_pos = scene.target_green
+        cube1_position = scene.block_red
+        cube2_position = scene.block_blue
     elif block == "blue":
         block_pos = scene.block_blue
         target_pos = scene.target_blue
+        cube1_position = scene.block_red
+        cube2_position = scene.block_green
     else:
         raise ValueError(f"Unknown block color: {block}")
     
@@ -52,7 +58,7 @@ def get_metrics_for_block_moving(block, scene):
     target_distance = np.linalg.norm(block_to_target_vec)
     target_angle = np.arctan2(block_to_target_vec[1], block_to_target_vec[0])
 
-    return (distance, angle, target_distance, target_angle)
+    return (distance, angle, target_distance, target_angle, cube1_position, cube2_position)
 
 # This is for intructions, not robot position updating
 def get_turn_angle(current_orientation, target_angle):
