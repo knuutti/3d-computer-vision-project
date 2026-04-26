@@ -59,7 +59,7 @@ def get_turn_angle(current_orientation, target_angle):
     turn_angle = np.degrees(target_angle - current_orientation)
     if abs(turn_angle) > 180:
         turn_angle -= np.sign(turn_angle) * 360
-    return turn_angle
+    return -1*turn_angle
 
 def write_instructions_for_moving_block(metrics, scene, cube_color):
     
