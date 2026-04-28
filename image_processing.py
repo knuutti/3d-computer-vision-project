@@ -31,7 +31,7 @@ def classify_blobs(blobs):
     elif len(blobs) == 1:
         return blobs, []
     else:
-        sorted_indices = np.argsort([blob.is_mask_in_centroid for blob in blobs])[::-1]
+        sorted_indices = np.argsort([blob.holeFactor for blob in blobs])[::-1]
         cube_face_blob = blobs[sorted_indices[0]]
         goal_blob = blobs[sorted_indices[1]]
         return [cube_face_blob], [goal_blob]
@@ -43,7 +43,7 @@ def color_threshold(img, color):
         upper = np.array([10, 255, 200])
     elif color == Color.GREEN:
         lower = np.array([50, 20, 30])
-        upper = np.array([200, 150, 70])
+        upper = np.array([120, 150, 70])
     elif color == Color.BLUE:
         lower = np.array([100, 100, 40])
         upper = np.array([140, 200, 160])
@@ -58,6 +58,11 @@ def color_threshold(img, color):
 
     mask = cv.inRange(img, lower, upper)
     mask = clean_mask(mask)
+
+    if color==Color.GREEN:
+        plt.imshow(mask)
+        plt.title("Green mask")
+        plt.show()
     
     return mask
 
