@@ -37,11 +37,11 @@ def analyze_image(img_hsv):
         if color == ip.Color.YELLOW:
             if len(blobs) > 1:
                 # If two yellow blobs, combine them into one
-                xmin = min(blobs[0]['xmin'], blobs[1]['xmin'])
-                ymin = min(blobs[0]['ymin'], blobs[1]['ymin'])
-                width = max(blobs[0]['xmin'] + blobs[0]['width'], blobs[1]['xmin'] + blobs[1]['width']) - xmin
-                height = max(blobs[0]['ymin'] + blobs[0]['height'], blobs[1]['ymin'] + blobs[1]['height']) - ymin
-                area = blobs[0]['area'] + blobs[1]['area']
+                xmin = min(blobs[0].xmin, blobs[1].xmin)
+                ymin = min(blobs[0].ymin, blobs[1].ymin)
+                width = max(blobs[0].xmin + blobs[0].width, blobs[1].xmin + blobs[1].width) - xmin
+                height = max(blobs[0].ymin + blobs[0].height, blobs[1].ymin + blobs[1].height) - ymin
+                area = blobs[0].area + blobs[1].area
                 centroid = (xmin + width / 2, ymin + height / 2)
             else:
                 xmin = blobs[0].xmin

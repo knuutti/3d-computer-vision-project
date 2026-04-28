@@ -1,23 +1,19 @@
 import calibration as cal
 import execute2 as execute
 import cv2 as cv
-import numpy as np
 
 def main():
 
     # Calibrate
-    img = cv.imread("calibration/true_test_1.png")
+    img = cv.imread("calibration/calib3.png")
     imgs = [img]
     M = cal.calibrate_camera(imgs, mode="auto")
 
-
     # Execute
-    img_test = cv.imread("test/test_2.png")
-
-    scene = execute.get_scene_details(execute.get_points_from_image(img_test, M))
-    execute.plot_scene(scene)
-
-    instructions = execute.move_block(["red", "blue", "green"], img_test, M)
+    img_test = cv.imread("test/test10.png")
+    blocks_to_move = ["blue", "green", "red"]
+    
+    instructions = execute.move_block(blocks_to_move, img_test, M)
 
     print(instructions)
 

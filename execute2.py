@@ -86,7 +86,8 @@ def is_path_clear(seg_start, seg_end, obstacles, min_clearance=170.0):
 
 
 def find_temp_point(start_pos, dest_pos, current_orientation, obstacles, min_clearance=170.0):
-    for abs_angle_deg in range(91):
+    results = []
+    for abs_angle_deg in range(180):
         signs = [1] if abs_angle_deg == 0 else [1, -1]
         for sign in signs:
             angle_deg = sign * abs_angle_deg
@@ -95,14 +96,16 @@ def find_temp_point(start_pos, dest_pos, current_orientation, obstacles, min_cle
                 temp = start_pos + dist_mm * np.array([np.cos(direction), np.sin(direction)])
                 if (is_path_clear(start_pos, temp, obstacles, min_clearance) and
                         is_path_clear(temp, dest_pos, obstacles, min_clearance)):
-                    return angle_deg, dist_mm, temp
+                    results.append((angle_deg, dist_mm, temp))
+    
+    if results:
+        return min(results, key=lambda r: abs(r[0]) * r[1])
     return None
 
 
 def navigate_to(dest_pos, obstacles, scene, dist_adjustment=0):
     instructions = ""
     temp_result = find_temp_point(scene.robot, dest_pos, scene.robot_orientation, obstacles)
-
     if temp_result is not None:
         angle_deg, dist_mm, _ = temp_result
         if angle_deg != 0 and dist_mm != 0:
@@ -131,9 +134,9 @@ def write_instructions_for_moving_block(metrics, scene, cube_color):
 
     instructions = navigate_to(cube_pos, obstacles, scene, dist_adjustment=0)
     instructions += "grab();"
-    instructions += navigate_to(target_pos, obstacles, scene, dist_adjustment=120)
+    instructions += navigate_to(target_pos, obstacles, scene, dist_adjustment=100)
     instructions += "let_go();"
-    instructions += "go(-20);"
+    instructions += "go(-10);"
     scene.robot -= 200 * np.array([np.cos(scene.robot_orientation), np.sin(scene.robot_orientation)])
 
     if cube_color == "red":
@@ -184,63 +187,7 @@ def get_scene_details(points_3d):
         robot_orientation=robot_orientation
     )
 
-def plot_paths(blocks, scene):
-    import copy
-    sc = copy.deepcopy(scene)
-
-    fig, ax = plt.subplots()
-    ax.scatter(scene.block_red[0], scene.block_red[1], c='r', s=100, marker='s', label='Block Red')
-    ax.scatter(scene.block_green[0], scene.block_green[1], c='g', s=100, marker='s', label='Block Green')
-    ax.scatter(scene.block_blue[0], scene.block_blue[1], c='b', s=100, marker='s', label='Block Blue')
-    ax.scatter(scene.target_red[0], scene.target_red[1], c='r', s=100, marker='o', label='Target Red')
-    ax.scatter(scene.target_green[0], scene.target_green[1], c='g', s=100, marker='o', label='Target Green')
-    ax.scatter(scene.target_blue[0], scene.target_blue[1], c='b', s=100, marker='o', label='Target Blue')
-    ax.scatter(scene.robot[0], scene.robot[1], c='m', s=100, marker='o', label='Robot')
-    ax.plot([scene.robot[0], scene.robot[0] + 120 * np.cos(scene.robot_orientation)],
-            [scene.robot[1], scene.robot[1] + 120 * np.sin(scene.robot_orientation)], c='m')
-
-    clr = {'red': 'r', 'green': 'g', 'blue': 'b'}
-
-    for block in blocks:
-        metrics = get_metrics_for_block_moving(block, sc)
-        *_, cube1, cube2, cube_pos, target_pos = metrics
-        obstacles = [cube1, cube2]
-        c = clr[block]
-
-        leg1_start = sc.robot.copy()
-        temp1 = find_temp_point(sc.robot, cube_pos, sc.robot_orientation, obstacles)
-        if temp1 is not None and temp1[1] != 0:
-            tp1 = temp1[2]
-            ax.plot([leg1_start[0], tp1[0], cube_pos[0]], [leg1_start[1], tp1[1], cube_pos[1]], '-', color=c, linewidth=1.5)
-            ax.scatter(*tp1, c=c, s=80, marker='D', zorder=5)
-        else:
-            ax.plot([leg1_start[0], cube_pos[0]], [leg1_start[1], cube_pos[1]], '-', color=c, linewidth=1.5)
-        navigate_to(cube_pos, obstacles, sc, dist_adjustment=0)
-
-        leg2_start = sc.robot.copy()
-        temp2 = find_temp_point(sc.robot, target_pos, sc.robot_orientation, obstacles)
-        if temp2 is not None and temp2[1] != 0:
-            tp2 = temp2[2]
-            ax.plot([leg2_start[0], tp2[0], target_pos[0]], [leg2_start[1], tp2[1], target_pos[1]], '--', color=c, linewidth=1.5)
-            ax.scatter(*tp2, c=c, s=80, marker='D', zorder=5)
-        else:
-            ax.plot([leg2_start[0], target_pos[0]], [leg2_start[1], target_pos[1]], '--', color=c, linewidth=1.5)
-        navigate_to(target_pos, obstacles, sc, dist_adjustment=120)
-        sc.robot -= 200 * np.array([np.cos(sc.robot_orientation), np.sin(sc.robot_orientation)])
-        if block == "red":
-            sc.block_red = sc.target_red
-        elif block == "green":
-            sc.block_green = sc.target_green
-        elif block == "blue":
-            sc.block_blue = sc.target_blue
-
-    ax.legend()
-    ax.axis('equal')
-    ax.grid()
-    plt.title("Solid = to cube, dashed = to target, diamond = temp waypoint")
-    plt.show()
-
-
+# Visualization function, shows the projected scene
 def plot_scene(scene):
     fig, ax = plt.subplots()
     ax.scatter(scene.block_red[0], scene.block_red[1], c='r', s=100, marker='s', label='Block Red')
