@@ -31,7 +31,7 @@ def classify_blobs(blobs):
     elif len(blobs) == 1:
         return blobs, []
     else:
-        sorted_indices = np.argsort([blob.holeFactor for blob in blobs])[::-1]
+        sorted_indices = np.argsort([blob.is_mask_in_centroid for blob in blobs])[::-1]
         cube_face_blob = blobs[sorted_indices[0]]
         goal_blob = blobs[sorted_indices[1]]
         return [cube_face_blob], [goal_blob]
@@ -42,8 +42,8 @@ def color_threshold(img, color):
         lower = np.array([0, 200, 50])
         upper = np.array([10, 255, 200])
     elif color == Color.GREEN:
-        lower = np.array([50, 20, 30])
-        upper = np.array([120, 150, 70])
+        lower = np.array([50, 20, 3])
+        upper = np.array([70, 150, 170])
     elif color == Color.BLUE:
         lower = np.array([100, 100, 40])
         upper = np.array([140, 200, 160])
@@ -58,11 +58,6 @@ def color_threshold(img, color):
 
     mask = cv.inRange(img, lower, upper)
     mask = clean_mask(mask)
-
-    if color==Color.GREEN:
-        plt.imshow(mask)
-        plt.title("Green mask")
-        plt.show()
     
     return mask
 
@@ -110,3 +105,20 @@ def analyze_blobs(mask, min_area=100):
             ))
 
     return blobs
+
+
+if __name__ == "__main__":
+    img = cv.imread("test/test_1.png")
+    
+    # test green mask
+    img_hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+
+    # plot hue
+    plt.imshow(img_hsv[:, :, 0], cmap='hsv')
+    plt.title("Hue channel")
+    plt.show()
+
+    mask_green = color_threshold(img_hsv, Color.GREEN)
+    plt.imshow(mask_green)
+    plt.title("Green mask")
+    plt.show()
