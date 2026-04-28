@@ -1,6 +1,7 @@
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 import image_processing as ip
 
@@ -20,7 +21,7 @@ def get_cube_face_corners(img_hsv, color):
     corners_2d = np.array([blob.y_min_point, blob.x_max_point, blob.y_max_point, blob.x_min_point])
     return corners_2d
 
-def get_calibration_points(img, auto=True, scale_factor = 1.0):
+def get_calibration_points(img, auto=True, scale_factor = 0.1):
     img_scaled_gray = cv.resize(cv.cvtColor(img, cv.COLOR_BGR2GRAY), (0, 0), fx=scale_factor, fy=scale_factor)
 
     points_2d = None

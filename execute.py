@@ -87,19 +87,17 @@ def is_path_clear(seg_start, seg_end, obstacles, min_clearance=170.0):
 
 def find_temp_point(start_pos, dest_pos, current_orientation, obstacles, min_clearance=170.0):
     results = []
-    for abs_angle_deg in range(180):
-        signs = [1] if abs_angle_deg == 0 else [1, -1]
-        for sign in signs:
-            angle_deg = sign * abs_angle_deg
-            direction = current_orientation + np.radians(angle_deg)
-            for dist_mm in range(0, 501, 10):
+    for dist_mm in range(0, 501, 10):
+        for abs_angle_deg in range(180):
+            signs = [1] if abs_angle_deg == 0 else [1, -1]
+            for sign in signs:
+                angle_deg = sign * abs_angle_deg
+                direction = current_orientation + np.radians(angle_deg)
                 temp = start_pos + dist_mm * np.array([np.cos(direction), np.sin(direction)])
                 if (is_path_clear(start_pos, temp, obstacles, min_clearance) and
                         is_path_clear(temp, dest_pos, obstacles, min_clearance)):
-                    results.append((angle_deg, dist_mm, temp))
+                    return (angle_deg, dist_mm, temp)
     
-    if results:
-        return min(results, key=lambda r: abs(r[0]) * r[1])
     return None
 
 
@@ -132,7 +130,7 @@ def write_instructions_for_moving_block(metrics, scene, cube_color):
     *_, cube1_position, cube2_position, cube_pos, target_pos = metrics
     obstacles = [cube1_position, cube2_position]
 
-    instructions = navigate_to(cube_pos, obstacles, scene, dist_adjustment=0)
+    instructions = navigate_to(cube_pos, obstacles, scene, dist_adjustment=100)
     instructions += "grab();"
     instructions += navigate_to(target_pos, obstacles, scene, dist_adjustment=100)
     instructions += "let_go();"
