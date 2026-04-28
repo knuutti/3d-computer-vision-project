@@ -5,15 +5,40 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class SceneDetails:
-    def __init__(self, block_red, block_green, block_blue, target_red, target_green, target_blue, robot, robot_orientation):
+    def __init__(self, block_red, block_green, block_blue, target_red, target_green, target_blue, robot_center, robot_front, robot_orientation):
         self.block_red = block_red
         self.block_green = block_green
         self.block_blue = block_blue
         self.target_red = target_red
         self.target_green = target_green
         self.target_blue = target_blue
-        self.robot = robot
+        self.robot_center = robot_center
+        self.robot_front = robot_front
         self.robot_orientation = robot_orientation
+
+def calculate_distance(current, target):
+
+    distance = np.linalg.norm(current - target)
+
+    return distance
+
+def calculate_angle(c, f, t):
+    # c is a robot center
+    # f is a robot front
+    # t is a target destination
+
+    i = np.array([f[0] - c[0], f[1] - c[1]])  # A vector from robot center to robot front
+    j = np.array([t[0] - c[0], t[1] - c[1]])  # A vector from robot center to target destination
+
+    angle = np.degrees(np.arccos((np.dot(i.T, j) / (np.linalg.norm(i) * np.linalg.norm(j)))))
+    
+    a = (c[1] - f[1]) / (c[0] - f[0])
+    b = c[1] - a * c[0]
+
+    if t[1] < a * t[0] + b:
+        angle = -angle        
+    
+    return angle
 
 def move_block(blocks, img, calib) -> str:
     """
@@ -151,12 +176,46 @@ def write_instructions_for_moving_block(metrics, scene, cube_color):
 def get_instructions(blocks, scene):
     instructions = ""
     
-    for block in blocks:
-        metrics = get_metrics_for_block_moving(block, scene)
-        block_instructions, scene = write_instructions_for_moving_block(metrics, scene, cube_color=block)
-        instructions += block_instructions
+    # TODO
     
-    return instructions[:-1]
+    robot_center_coords = np.array([scene.robot_center]).T
+    robot_front_coords = np.array([scene.robot_front]).T
+
+    block_coords = np.array([
+        scene.block_red,
+        scene.block_green,
+        scene.block_blue
+    ])
+
+    target_coords = np.array([
+        scene.target_red,
+        scene.target_green,
+        scene.target_blue
+    ])
+
+    for i in range(len(block_coords)):
+        distance = calculate_distance(robot_center_coords, block_coords[i,:])
+        distance /= 10  # Convert to cm
+        angle = calculate_angle(robot_center_coords, robot_front_coords, block_coords[i,:])
+        instructions += f"turn({angle}); go({distance}); grab(); "
+        robot_center_coords = block_coords[i,:]
+        robot_front_x = scene.robot_center[0] + 120 * np.cos(robot_front_coords[1] - robot_center_coords[1], robot_front_coords[0] - robot_center_coords[0])
+        robot_front_y = scene.robot_center[1] + 120 * np.sin(robot_front_coords[1] - robot_center_coords[1], robot_front_coords[0] - robot_center_coords[0])
+        robot_front_coords = [robot_front_x, robot_front_y]
+        
+        distance = calculate_distance(robot_center_coords, target_coords[i,:])
+        distance -= 120 # Length of the grabber
+        distance /= 10  # Convert to cm
+        angle = calculate_angle(robot_center_coords, robot_front_coords, target_coords[i,:])
+        instructions += f"turn({angle}); go({distance}); let_go(); go(-240); "
+        robot_center_x = scene.robot_center[0] - 240 * np.cos(robot_front_coords[1] - robot_center_coords[1], robot_front_coords[0] - robot_center_coords[0])
+        robot_center_y = scene.robot_center[1] - 240 * np.sin(robot_front_coords[1] - robot_center_coords[1], robot_front_coords[0] - robot_center_coords[0])
+        robot_center_coords = [robot_center_x, robot_center_y]
+        robot_front_x = scene.robot_center[0] + 120 * np.cos(robot_front_coords[1] - robot_center_coords[1], robot_front_coords[0] - robot_center_coords[0])
+        robot_front_y = scene.robot_center[1] + 120 * np.sin(robot_front_coords[1] - robot_center_coords[1], robot_front_coords[0] - robot_center_coords[0])
+        robot_front_coords = [robot_front_x, robot_front_y]
+
+    return instructions
 
 def get_points_from_image(img, calib):
     img_hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
@@ -166,7 +225,7 @@ def get_points_from_image(img, calib):
     elements = [elements[i] for i in idx]
     heights = [element["height"] for element in elements]
     points_2d = np.array([element["centroid"] for element in elements])
-    points_3d_estimated = cal.image_points_to_world_at_z(calib, points_2d, z=heights)
+    points_3d_estimated = cal.project_point(calib, points_2d, z=heights)
     return points_3d_estimated[:, :2]
 
 def get_scene_details(points_3d):
@@ -183,7 +242,8 @@ def get_scene_details(points_3d):
         target_red=points_3d[3],
         target_green=points_3d[4],
         target_blue=points_3d[5],
-        robot=robot_center,
+        robot_center=robot_center,
+        robot_front=robot_front,
         robot_orientation=robot_orientation
     )
 
@@ -196,11 +256,11 @@ def plot_scene(scene):
     ax.scatter(scene.target_red[0], scene.target_red[1], c='r', s=100, marker='o', label='Target Red')
     ax.scatter(scene.target_green[0], scene.target_green[1], c='g', s=100, marker='o', label='Target Green')
     ax.scatter(scene.target_blue[0], scene.target_blue[1], c='b', s=100, marker='o', label='Target Blue')
-    ax.scatter(scene.robot[0], scene.robot[1], c='m', s=100, marker='o', label='Robot')
+    ax.scatter(scene.robot_center[0], scene.robot_center[1], c='m', s=100, marker='o', label='Robot')
     # robot front is 120 mm from the center, so we can plot it as a line
-    robot_front_x = scene.robot[0] + 120 * np.cos(scene.robot_orientation)
-    robot_front_y = scene.robot[1] + 120 * np.sin(scene.robot_orientation)
-    ax.plot([scene.robot[0], robot_front_x], [scene.robot[1], robot_front_y], c='m', label='Robot Orientation')
+    robot_front_x = scene.robot_center[0] + 120 * np.cos(scene.robot_orientation)
+    robot_front_y = scene.robot_center[1] + 120 * np.sin(scene.robot_orientation)
+    ax.plot([scene.robot_center[0], robot_front_x], [scene.robot_center[1], robot_front_y], c='m', label='Robot Orientation')
     ax.legend()
     ax.axis('equal')
     ax.grid()
