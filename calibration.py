@@ -184,6 +184,19 @@ def select_points(img, scale_factor=.3):
     return points
 
 if __name__ == "__main__":
-    img = cv.imread("calibration/img_01.png")
+    img = cv.imread("calibration/calib2.png")
     imgs = [img]
+
+    # Visualize points selected in automatic calibration
+    points_2d, points_3d = get_calibration_points(img, auto=True)
+    plt.imshow(img)
+    plt.scatter(points_2d[:, 0], points_2d[:, 1], c='r', marker='x')
+    # show index next to each point
+    for i, (x, y) in enumerate(points_2d):
+        plt.text(x, y, str(i), color='yellow', fontsize=12)
+    plt.title("Selected calibration points")
+
+
+    plt.show()
+
     M = calibrate_camera(imgs, mode="auto")

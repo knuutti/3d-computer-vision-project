@@ -54,6 +54,75 @@ def move_block(blocks, img, calib) -> str:
     instructions = get_instructions(blocks, scene)
     return instructions
 
+def get_metrics_for_block_moving(block, scene):
+    if block == "red":
+        block_pos = scene.block_red
+        target_pos = scene.target_red
+        cube1_position = scene.block_green
+        cube2_position = scene.block_blue
+    elif block == "green":
+        block_pos = scene.block_green
+        target_pos = scene.target_green
+        cube1_position = scene.block_red
+        cube2_position = scene.block_blue
+    elif block == "blue":
+        block_pos = scene.block_blue
+        target_pos = scene.target_blue
+        cube1_position = scene.block_red
+        cube2_position = scene.block_green
+    else:
+        raise ValueError(f"Unknown block color: {block}")
+    
+    # Calculate the distance and angle from robot to block
+    robot_to_block_vec = block_pos - scene.robot
+    distance = np.linalg.norm(robot_to_block_vec)
+    angle = np.arctan2(robot_to_block_vec[1], robot_to_block_vec[0])
+
+    # Calculate the distance and angle from block to target
+    block_to_target_vec = target_pos - block_pos
+    target_distance = np.linalg.norm(block_to_target_vec)
+    target_angle = np.arctan2(block_to_target_vec[1], block_to_target_vec[0])
+
+    return (distance, angle, target_distance, target_angle, cube1_position, cube2_position)
+
+# This is for intructions, not robot position updating
+def get_turn_angle(current_orientation, target_angle):
+    turn_angle = np.degrees(target_angle - current_orientation)
+    if abs(turn_angle) > 180:
+        turn_angle -= np.sign(turn_angle) * 360
+    return -1*turn_angle
+
+def write_instructions_for_moving_block(metrics, scene, cube_color):
+    
+    # Rotate the robot to face the block
+    instructions = f"turn({get_turn_angle(scene.robot_orientation, metrics[1]):.1f});"
+    scene.robot_orientation = metrics[1]  # Update robot orientation after rotation
+    # Move the robot to the block
+    instructions += f"go({metrics[0]/10:.1f});"
+    scene.robot += metrics[0] * np.array([np.cos(scene.robot_orientation), np.sin(scene.robot_orientation)])  # Update robot position after moving forward
+    # Pick up the block
+    instructions += "grab();"
+    # Rotate the robot to face the target
+    instructions += f"turn({get_turn_angle(metrics[1], metrics[3]):.1f});"
+    scene.robot_orientation = metrics[3]  # Update robot orientation after rotation
+    # Move the robot to the target (should be -100 mm))
+    instructions += f"go({((metrics[2]-100)/10):.1f});"
+    scene.robot += (metrics[2] - 100) * np.array([np.cos(scene.robot_orientation), np.sin(scene.robot_orientation)])  # Update robot position after moving forward
+    # Drop the block
+    instructions += "let_go();"
+    # Move back 200 mm to clear the area    
+    instructions += "go(-20);"
+    scene.robot -= 200 * np.array([np.cos(scene.robot_orientation), np.sin(scene.robot_orientation)])  # Update robot position after moving backward
+
+    if cube_color == "red":
+        scene.block_red = scene.target_red
+    elif cube_color == "green":
+        scene.block_green = scene.target_green
+    elif cube_color == "blue":
+        scene.block_blue = scene.target_blue
+
+    return instructions, scene
+
 def get_instructions(blocks, scene):
     instructions = ""
     

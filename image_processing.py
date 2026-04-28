@@ -39,11 +39,11 @@ def classify_blobs(blobs):
 # Function for getting a binary mask for a specific color in an image
 def color_threshold(img, color):
     if color == Color.RED:
-        lower = np.array([0, 200, 50])
+        lower = np.array([0, 150, 50])
         upper = np.array([10, 255, 200])
     elif color == Color.GREEN:
-        lower = np.array([50, 20, 30])
-        upper = np.array([200, 150, 70])
+        lower = np.array([50, 20, 3])
+        upper = np.array([70, 150, 170])
     elif color == Color.BLUE:
         lower = np.array([100, 100, 40])
         upper = np.array([140, 200, 160])
@@ -105,3 +105,20 @@ def analyze_blobs(mask, min_area=100):
             ))
 
     return blobs
+
+
+if __name__ == "__main__":
+    img = cv.imread("test/test7.png")
+    
+    # test green mask
+    img_hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+
+    # plot hue
+    plt.imshow(img_hsv[:, :, 0], cmap='hsv')
+    plt.title("Hue channel")
+    plt.show()
+
+    mask_green = color_threshold(img_hsv, Color.RED)
+    plt.imshow(mask_green)
+    plt.title("Green mask")
+    plt.show()
