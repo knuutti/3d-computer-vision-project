@@ -47,7 +47,7 @@ def get_metrics_for_block_moving(block, scene):
         cube2_position = scene.block_green
     else:
         raise ValueError(f"Unknown block color: {block}")
-    
+
     # Calculate the distance and angle from robot to block
     robot_to_block_vec = block_pos - scene.robot
     distance = np.linalg.norm(robot_to_block_vec)
@@ -58,36 +58,86 @@ def get_metrics_for_block_moving(block, scene):
     target_distance = np.linalg.norm(block_to_target_vec)
     target_angle = np.arctan2(block_to_target_vec[1], block_to_target_vec[0])
 
-    return (distance, angle, target_distance, target_angle, cube1_position, cube2_position)
+    return (distance, angle, target_distance, target_angle, cube1_position, cube2_position, block_pos, target_pos)
 
-# This is for intructions, not robot position updating
+# This is for instructions, not robot position updating
 def get_turn_angle(current_orientation, target_angle):
     turn_angle = np.degrees(target_angle - current_orientation)
     if abs(turn_angle) > 180:
         turn_angle -= np.sign(turn_angle) * 360
     return -1*turn_angle
 
-def write_instructions_for_moving_block(metrics, scene, cube_color):
+def point_to_segment_distance(point, seg_start, seg_end):
+    seg_vec = seg_end - seg_start
+    seg_len_sq = np.dot(seg_vec, seg_vec)
+    if seg_len_sq == 0:
+        return np.linalg.norm(point - seg_start)
+    t = np.clip(np.dot(point - seg_start, seg_vec) / seg_len_sq, 0.0, 1.0)
+    return np.linalg.norm(point - (seg_start + t * seg_vec))
+
+
+def is_path_clear(seg_start, seg_end, obstacles, min_clearance=170.0):
+    for obs in obstacles:
+        if obs is None:
+            continue
+        if point_to_segment_distance(obs, seg_start, seg_end) < min_clearance:
+            return False
+    return True
+
+
+def find_temp_point(start_pos, dest_pos, current_orientation, obstacles, min_clearance=170.0):
+    results = []
+    for abs_angle_deg in range(180):
+        signs = [1] if abs_angle_deg == 0 else [1, -1]
+        for sign in signs:
+            angle_deg = sign * abs_angle_deg
+            direction = current_orientation + np.radians(angle_deg)
+            for dist_mm in range(0, 501, 10):
+                temp = start_pos + dist_mm * np.array([np.cos(direction), np.sin(direction)])
+                if (is_path_clear(start_pos, temp, obstacles, min_clearance) and
+                        is_path_clear(temp, dest_pos, obstacles, min_clearance)):
+                    results.append((angle_deg, dist_mm, temp))
     
-    # Rotate the robot to face the block
-    instructions = f"turn({get_turn_angle(scene.robot_orientation, metrics[1]):.1f});"
-    scene.robot_orientation = metrics[1]  # Update robot orientation after rotation
-    # Move the robot to the block
-    instructions += f"go({metrics[0]/10:.1f});"
-    scene.robot += metrics[0] * np.array([np.cos(scene.robot_orientation), np.sin(scene.robot_orientation)])  # Update robot position after moving forward
-    # Pick up the block
+    if results:
+        return min(results, key=lambda r: abs(r[0]) * r[1])
+    return None
+
+
+def navigate_to(dest_pos, obstacles, scene, dist_adjustment=0):
+    instructions = ""
+    temp_result = find_temp_point(scene.robot, dest_pos, scene.robot_orientation, obstacles)
+    if temp_result is not None:
+        angle_deg, dist_mm, _ = temp_result
+        if angle_deg != 0 and dist_mm != 0:
+            new_dir = scene.robot_orientation + np.radians(angle_deg)
+            instructions += f"turn({get_turn_angle(scene.robot_orientation, new_dir):.1f});"
+            scene.robot_orientation = new_dir
+        if dist_mm != 0:
+            instructions += f"go({dist_mm / 10:.1f});"
+            scene.robot = scene.robot + dist_mm * np.array([np.cos(scene.robot_orientation), np.sin(scene.robot_orientation)])
+
+    vec = dest_pos - scene.robot
+    dist = np.linalg.norm(vec)
+    angle = np.arctan2(vec[1], vec[0])
+    instructions += f"turn({get_turn_angle(scene.robot_orientation, angle):.1f});"
+    scene.robot_orientation = angle
+    go_dist_mm = dist - dist_adjustment
+    instructions += f"go({go_dist_mm / 10:.1f});"
+    scene.robot = scene.robot + go_dist_mm * np.array([np.cos(scene.robot_orientation), np.sin(scene.robot_orientation)])
+
+    return instructions
+
+
+def write_instructions_for_moving_block(metrics, scene, cube_color):
+    *_, cube1_position, cube2_position, cube_pos, target_pos = metrics
+    obstacles = [cube1_position, cube2_position]
+
+    instructions = navigate_to(cube_pos, obstacles, scene, dist_adjustment=0)
     instructions += "grab();"
-    # Rotate the robot to face the target
-    instructions += f"turn({get_turn_angle(metrics[1], metrics[3]):.1f});"
-    scene.robot_orientation = metrics[3]  # Update robot orientation after rotation
-    # Move the robot to the target (should be -100 mm))
-    instructions += f"go({((metrics[2]-100)/10):.1f});"
-    scene.robot += (metrics[2] - 100) * np.array([np.cos(scene.robot_orientation), np.sin(scene.robot_orientation)])  # Update robot position after moving forward
-    # Drop the block
+    instructions += navigate_to(target_pos, obstacles, scene, dist_adjustment=100)
     instructions += "let_go();"
-    # Move back 200 mm to clear the area    
-    instructions += "go(-20);"
-    scene.robot -= 200 * np.array([np.cos(scene.robot_orientation), np.sin(scene.robot_orientation)])  # Update robot position after moving backward
+    instructions += "go(-10);"
+    scene.robot -= 200 * np.array([np.cos(scene.robot_orientation), np.sin(scene.robot_orientation)])
 
     if cube_color == "red":
         scene.block_red = scene.target_red
@@ -137,6 +187,7 @@ def get_scene_details(points_3d):
         robot_orientation=robot_orientation
     )
 
+# Visualization function, shows the projected scene
 def plot_scene(scene):
     fig, ax = plt.subplots()
     ax.scatter(scene.block_red[0], scene.block_red[1], c='r', s=100, marker='s', label='Block Red')
