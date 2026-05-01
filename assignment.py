@@ -16,8 +16,8 @@ def move_block(blocks, img, calib):
 
 def main():
     # Parameters
-    calib_img_path = "calibration/calib_img_01.png"
-    test_img_path = "test/test_img_01.png"
+    calib_img_path = "img/calibration.png"
+    test_img_path = "img/test.png"
     blocks_to_move = ["blue", "red", "green"]
 
     # Calibration
