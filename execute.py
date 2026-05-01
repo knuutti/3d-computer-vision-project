@@ -85,7 +85,7 @@ def get_metrics_for_block_moving(block, scene):
 
     return (distance, angle, target_distance, target_angle, cube1_position, cube2_position, block_pos, target_pos)
 
-# This is for instructions, not robot position updating
+
 def get_turn_angle(current_orientation, target_angle):
     turn_angle = np.degrees(target_angle - current_orientation)
     if abs(turn_angle) > 180:
@@ -111,7 +111,10 @@ def is_path_clear(seg_start, seg_end, obstacles, min_clearance=170.0):
 
 
 def find_temp_point(start_pos, dest_pos, current_orientation, obstacles, min_clearance=170.0):
-    results = []
+    # Search iteratively for a temporary point to navigate first
+    # Try to find point with smalles distance needed to travel
+    # min_clearance defines how far away we should be from obstacles
+
     for dist_mm in range(0, 501, 10):
         for abs_angle_deg in range(180):
             signs = [1] if abs_angle_deg == 0 else [1, -1]
@@ -119,14 +122,16 @@ def find_temp_point(start_pos, dest_pos, current_orientation, obstacles, min_cle
                 angle_deg = sign * abs_angle_deg
                 direction = current_orientation + np.radians(angle_deg)
                 temp = start_pos + dist_mm * np.array([np.cos(direction), np.sin(direction)])
-                if (is_path_clear(start_pos, temp, obstacles, min_clearance) and
-                        is_path_clear(temp, dest_pos, obstacles, min_clearance)):
+                if (is_path_clear(start_pos, temp, obstacles, min_clearance) and is_path_clear(temp, dest_pos, obstacles, min_clearance)):
                     return (angle_deg, dist_mm, temp)
     
     return None
 
 
 def navigate_to(dest_pos, obstacles, scene, dist_adjustment=0):
+    # Get full instructions to navigating to a destination safely, avoiding obstacles
+    # dist_adjustment can be used to specify how close we want to get to the destination
+
     instructions = ""
     temp_result = find_temp_point(scene.robot, dest_pos, scene.robot_orientation, obstacles)
     if temp_result is not None:
@@ -247,7 +252,7 @@ def get_scene_details(points_3d):
 
 # Visualization function, shows the projected scene
 def plot_scene(scene):
-    fig, ax = plt.subplots()
+    _, ax = plt.subplots()
     ax.scatter(scene.block_red[0], scene.block_red[1], c='r', s=100, marker='s', label='Block Red')
     ax.scatter(scene.block_green[0], scene.block_green[1], c='g', s=100, marker='s', label='Block Green')
     ax.scatter(scene.block_blue[0], scene.block_blue[1], c='b', s=100, marker='s', label='Block Blue')

@@ -80,10 +80,3 @@ def analyze_image(img_hsv):
         })
         
     return returned_elements
-
-if __name__ == "__main__":
-    img = cv.imread("test/img_01.png", cv.IMREAD_COLOR)
-    img_hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-    elements = analyze_image(img_hsv)
-    for element in elements:
-        print(f"Centroid: {element['centroid']}, Type: {element['type']}, Color: {element['color']}, Height: {element['height']}")

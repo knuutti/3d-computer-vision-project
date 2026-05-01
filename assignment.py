@@ -1,36 +1,33 @@
+from calibration import get_calibration_points, calibrate_norm
+from execute import get_points_from_image, get_scene_details, get_instructions
+import cv2 as cv
 
-import numpy as np
-from PIL import Image
-# You can import any other files that you use.
-# Please also provide pip requirements file for any additional libraries that you might need
-
-
-def calibrate(imgs):
-    """Calibrate the camera using images of a scene.
-
-    Args:
-        imgs (list<PIL.Image>): a list of PIL images to be used for calibration
-
-    Returns:
-        results of calibration that could be used for finding 3D positions of robot, blocks and target positions.
-        They could, for example, contain camera frame, projection matrix, etc.
-    """    
-    pass
+def calibrate_camera(imgs, mode="auto"):
+    img = imgs[0]
+    points_2d, points_3d = get_calibration_points(img, auto=(mode=="auto"))
+    M = calibrate_norm(points_2d, points_3d)
+    return M
 
 def move_block(blocks, img, calib):
-    """Returns the commands to move the specified blocks to their target position.
+    points_3d_estimated = get_points_from_image(img, calib)
+    scene = get_scene_details(points_3d_estimated)
+    instructions = get_instructions(blocks, scene)
+    return instructions
 
-    Args:
-        blocks (list<str>): a list of string values that determine which blocks you should move 
-                            and in which order. For example, if blocks = ["red", "green", "blue"] 
-                            that means that you need to first move red block. 
-                            Your function should at minimum work for the following values of blocks:
-                            blocks = ["red"], blocks = ["green"], blocks = ["blue"].
-        img (PIL.Image): a PIL image containing the current arrangement of robot and blocks.
-        calib : calibration results from function calibrate.
+def main():
+    # Parameters
+    calib_img_path = "calibration/calib_img_01.png"
+    test_img_path = "test/test_img_01.png"
+    blocks_to_move = ["blue", "red", "green"]
 
-    Returns:
-        str: robot commands separated by ";". 
-             An example output: "go(20); grab(); turn(90);  go(-10); let_go()"
-    """    
-    pass
+    # Calibration
+    img_calib = cv.imread(calib_img_path)
+    M = calibrate_camera([img_calib], mode="auto")
+    
+    # Execute
+    img_test = cv.imread(test_img_path)
+    print(move_block(blocks_to_move, img_test, M))
+
+if __name__ == "__main__":
+    main()
+    

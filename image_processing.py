@@ -105,20 +105,3 @@ def analyze_blobs(mask, min_area=100):
             ))
 
     return blobs
-
-
-if __name__ == "__main__":
-    img = cv.imread("test/test7.png")
-    
-    # test green mask
-    img_hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-
-    # plot hue
-    plt.imshow(img_hsv[:, :, 0], cmap='hsv')
-    plt.title("Hue channel")
-    plt.show()
-
-    mask_green = color_threshold(img_hsv, Color.RED)
-    plt.imshow(mask_green)
-    plt.title("Green mask")
-    plt.show()
