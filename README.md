@@ -1,7 +1,7 @@
 # 3D Computer Vision: Practical assignment
 Project work repository for the practical assignment for the course "3D Computer Vision". Goal of the project is to build a workflow for guiding a robot to move colored cubes to the desired target. The workflow includes camera calibration, object detection and an algorithm for guiding the robot. No deep learning methods were used for the solution.
 
-**Context:** 3D Computer Vision, LUT University, spring 2026. Team project with Joona Lappalainen ([@Jobe2000](https://github.com/Jobe2000)).
+**Context:** 3D Computer Vision, LUT University, spring 2026. Team project.
 
 ![Detected cubes, targets and robot markers on the test image, labelled with their estimated world coordinates](assets/result.png)
 
